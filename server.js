@@ -15,9 +15,8 @@ app.get('/', (req, res) => res.send('API is running...'));
 
 // Connect to Mongo and start
 const PORT = process.env.PORT || 5000;
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true, useUnifiedTopology: true
-}).then(() => {
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => {
   console.log('Mongo connected');
   app.listen(PORT, () => console.log(`Server listening on ${PORT}`));
 }).catch(err => {
