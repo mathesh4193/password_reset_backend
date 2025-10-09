@@ -106,7 +106,7 @@ router.post('/forgot-password', async (req, res) => {
     await user.save();
 
     // Build reset link (frontend will have a route to consume token)
-    const clientUrl = process.env.CLIENT_URL || 'https://passwordresetg.netlify.app/';
+    const clientUrl = process.env.CLIENT_URL || 'https://passwordresetg.netlify.app';
     const resetUrl = `${clientUrl}/reset-password?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
 
     // Send email
