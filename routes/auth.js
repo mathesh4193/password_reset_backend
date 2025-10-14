@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
@@ -39,6 +40,7 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ message: 'Email and password required' });
 
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) return res.status(401).json({ message: 'Invalid credentials' });
@@ -46,6 +48,7 @@ router.post('/login', async (req, res) => {
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(401).json({ message: 'Invalid credentials' });
 
+    // You might want to return a JWT here in future
     res.json({ message: 'Login successful' });
   } catch (err) {
     console.error(err);
@@ -65,20 +68,21 @@ router.post('/forgot-password', async (req, res) => {
 
     const rawToken = crypto.randomBytes(32).toString('hex');
     const hashed = hashToken(rawToken);
-    const expiry = Date.now() + (process.env.RESET_TOKEN_EXPIRY_MINUTES || 60) * 60000;
+    const expiryMinutes = parseInt(process.env.RESET_TOKEN_EXPIRY_MINUTES || '60', 10);
+    const expiry = Date.now() + expiryMinutes * 60000;
 
     user.resetPasswordToken = hashed;
     user.resetPasswordExpires = expiry;
     await user.save();
 
-    const resetUrl = `${process.env.CLIENT_URL}reset-password?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
+    const resetUrl = `${process.env.CLIENT_URL.replace(/\/$/, '')}/reset-password?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
     console.log("Reset URL:", resetUrl); // debug log
 
     const subject = 'Reset your password';
     const html = `
       <p>You requested a password reset.</p>
       <p>Click <a href="${resetUrl}">here</a> to reset your password.</p>
-      <p>This link expires in ${process.env.RESET_TOKEN_EXPIRY_MINUTES || 60} minutes.</p>
+      <p>This link expires in ${expiryMinutes} minutes.</p>
     `;
 
     await sendEmail({ to: user.email, subject, text: resetUrl, html });
