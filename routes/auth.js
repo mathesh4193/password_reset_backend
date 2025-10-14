@@ -71,7 +71,7 @@ router.post('/forgot-password', async (req, res) => {
     user.resetPasswordExpires = expiry;
     await user.save();
 
-    const resetUrl = `${process.env.CLIENT_URL}/reset-password?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
+    const resetUrl = `${process.env.CLIENT_URL}reset-password?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
     console.log("Reset URL:", resetUrl); // debug log
 
     const subject = 'Reset your password';
