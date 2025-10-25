@@ -1,18 +1,19 @@
-const nodemailer = require("nodemailer");
+require('dotenv').config();
+const nodemailer = require('nodemailer');
 
 const sendEmail = async ({ to, subject, text, html }) => {
   try {
     const port = parseInt(process.env.SMTP_PORT || '465', 10);
-    const secure = port === 465; // true for 465, false for 587
+    const secure = port === 465; // true for 465
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port,
       secure,
       auth: {
         user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-      // If you use self-signed certs in dev, you might add:
+        pass: process.env.SMTP_PASS
+      }
+      // If necessary for dev with self-signed certs:
       // tls: { rejectUnauthorized: false }
     });
 
@@ -21,14 +22,13 @@ const sendEmail = async ({ to, subject, text, html }) => {
       to,
       subject,
       text,
-      html,
+      html
     });
 
-    console.log("Email sent:", info && (info.messageId || info.response));
+    console.log('Email sent:', info && (info.messageId || info.response));
     return info;
   } catch (error) {
-    console.error("Email error:", error);
-    // Do not throw in production unless you want to bubble up; return an error object
+    console.error('Email error:', error);
     throw error;
   }
 };
