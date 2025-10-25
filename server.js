@@ -28,8 +28,15 @@ app.use(cors({
   preflightContinue: false
 }));
 
-// Enable CORS preflight for all routes
-app.options('*', cors());
+// Enable CORS preflight for all routes (Express 5 splat param)
+// Remove problematic wildcard options route; handle OPTIONS generically
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+// preflight handled by generic OPTIONS middleware
 
 // Routes
 app.use('/api/auth', authRoutes);
