@@ -8,17 +8,23 @@ const app = express();
 app.use(express.json());
 
 // CORS setup
-const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:3000').split(',');
+const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:3000,https://passwordresetg.netlify.app')
+  .split(',')
+  .map(o => o.trim());
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true); // allow Postman, mobile apps
-    if (allowedOrigins.includes(origin)) callback(null, true);
-    else callback(new Error('CORS policy: This origin is not allowed'));
+    if (!origin) return callback(null, true); // allow Postman, mobile apps, curl
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('CORS policy: This origin is not allowed'));
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+// Enable CORS preflight for all routes
+app.options('*', cors());
 
 // Routes
 app.use('/api/auth', authRoutes);
