@@ -8,9 +8,12 @@ const app = express();
 app.use(express.json());
 
 // CORS setup
-const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:3000,https://passwordresetg.netlify.app')
+const defaultOrigins = ['http://localhost:3000', 'https://passwordresetg.netlify.app'];
+const envOrigins = (process.env.CLIENT_URL || '')
   .split(',')
-  .map(o => o.trim());
+  .map(o => o.trim())
+  .filter(Boolean);
+const allowedOrigins = Array.from(new Set([...defaultOrigins, ...envOrigins]));
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -20,7 +23,9 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
+  optionsSuccessStatus: 200,
+  preflightContinue: false
 }));
 
 // Enable CORS preflight for all routes
