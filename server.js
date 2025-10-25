@@ -7,21 +7,22 @@ const authRoutes = require('./routes/auth');
 const app = express();
 app.use(express.json());
 
-const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:3002').split(',');
-
+// CORS setup
+const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:3000').split(',');
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true); // allow POSTman, mobile apps, curl
-    if (allowedOrigins.indexOf(origin) !== -1) callback(null, true);
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true); // allow Postman, mobile apps, curl
+    if (allowedOrigins.includes(origin)) callback(null, true);
     else callback(new Error('CORS policy: This origin is not allowed'));
   },
   credentials: true
 }));
 
+// Routes
 app.use('/api/auth', authRoutes);
+app.get('/', (req, res) => res.send('API is running 🚀'));
 
-app.get('/', (req, res) => res.send('API is running...'));
-
+// MongoDB connection
 const PORT = process.env.PORT || 5000;
 const mongoUri = process.env.MONGO_URI;
 if (!mongoUri) {
@@ -29,9 +30,9 @@ if (!mongoUri) {
   process.exit(1);
 }
 
-mongoose.connect(mongoUri, { useNewUrlParser: true, useUnifiedTopology: true })
+mongoose.connect(mongoUri)
   .then(() => {
-    console.log('MongoDB connected');
+    console.log('MongoDB connected successfully');
     app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
   })
   .catch(err => {
