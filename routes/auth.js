@@ -46,7 +46,7 @@ router.post('/login', async (req, res) => {
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(401).json({ message: 'Invalid credentials' });
 
-    // Placeholder: In production return JWT or session cookie.
+    // NOTE: For production return JWT or session cookie. Here we return a simple message.
     res.json({ message: 'Login successful' });
   } catch (err) {
     console.error(err);
@@ -61,7 +61,7 @@ router.post('/forgot-password', async (req, res) => {
     if (!email) return res.status(400).json({ message: 'Email required' });
 
     const user = await User.findOne({ email: email.toLowerCase() });
-    // Always respond with success message to avoid leaking existence.
+    // Always send a generic success response to avoid leaking user existence
     if (!user) {
       return res.status(200).json({ message: 'If that email exists, you will receive a reset link.' });
     }
@@ -75,7 +75,14 @@ router.post('/forgot-password', async (req, res) => {
     user.resetPasswordExpires = expiry;
     await user.save();
 
-    const clientBase = (process.env.CLIENT_URL || 'http://localhost:300').replace(/\/$/, '');
+    // Build client reset URL (support multiple CLIENT_URLs)
+    const clientUrls = (process.env.CLIENT_URL || 'http://localhost:3001')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+    // Use first client url for link generation
+    const clientBase = clientUrls[0].replace(/\/$/, '');
+
     const resetUrl = `${clientBase}/reset-password?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
 
     const subject = 'Reset your password';
@@ -137,7 +144,7 @@ router.post('/reset-password', async (req, res) => {
     user.resetPasswordExpires = undefined;
     await user.save();
 
-    // Notify user
+    // Notify user of change
     await sendEmail({
       to: user.email,
       subject: 'Password Changed',
@@ -151,14 +158,16 @@ router.post('/reset-password', async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
+
+/* GET ALL USERS (for debugging/admin) */
 router.get('/register', async (req, res) => {
   try {
     const users = await User.find().select('-password -resetPasswordToken -resetPasswordExpires');
     res.status(200).json(users);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: 'Server error' });
   }
 });
-
 
 module.exports = router;

@@ -7,8 +7,8 @@ const authRoutes = require('./routes/auth');
 const app = express();
 app.use(express.json());
 
-// CORS setup
-const defaultOrigins = ['http://localhost:3000', 'https://passwordresetg.netlify.app'];
+// CORS setup: allow both localhost and deployed clients
+const defaultOrigins = ['http://localhost:3000', 'http://localhost:3001', 'https://passwordresetg.netlify.app'];
 const envOrigins = (process.env.CLIENT_URL || '')
   .split(',')
   .map(o => o.trim())
@@ -17,45 +17,33 @@ const allowedOrigins = Array.from(new Set([...defaultOrigins, ...envOrigins]));
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true); // allow Postman, mobile apps, curl
+    if (!origin) return callback(null, true); 
     if (allowedOrigins.includes(origin)) return callback(null, true);
     return callback(new Error('CORS policy: This origin is not allowed'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
-  optionsSuccessStatus: 200,
-  preflightContinue: false
 }));
 
-// Enable CORS preflight for all routes (Express 5 splat param)
-// Remove problematic wildcard options route; handle OPTIONS generically
-app.use((req, res, next) => {
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
-  next();
-});
-// preflight handled by generic OPTIONS middleware
+app.options(/.*/, (req, res) => res.sendStatus(200));
 
-// Routes
+app.get('/', (req, res) => res.send('Password Reset API is running '));
 app.use('/api/auth', authRoutes);
-app.get('/', (req, res) => res.send('API is running'));
 
-// MongoDB connection
 const PORT = process.env.PORT || 5000;
 const mongoUri = process.env.MONGO_URI;
 if (!mongoUri) {
-  console.error('MONGO_URI not set in env');
+  console.error(' MONGO_URI not set in .env');
   process.exit(1);
 }
 
 mongoose.connect(mongoUri)
   .then(() => {
     console.log('MongoDB connected successfully');
-    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+    app.listen(PORT, () => console.log(` Server running on port ${PORT}`));
   })
   .catch(err => {
-    console.error('MongoDB connection error:', err);
+    console.error(' MongoDB connection error:', err);
     process.exit(1);
   });
