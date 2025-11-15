@@ -1,4 +1,3 @@
-// server.js
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -8,57 +7,28 @@ const authRoutes = require('./routes/auth');
 const app = express();
 app.use(express.json());
 
-// CORS SETUP
-const defaultOrigins = [
-  'http://localhost:3000',
-  'http://localhost:3001',
-  'https://passwordresetg.netlify.app',
-];
-
-const envOrigins = (process.env.CLIENT_URL || '')
-  .split(',')
-  .map(o => o.trim())
-  .filter(Boolean);
-
-const allowedOrigins = Array.from(new Set([...defaultOrigins, ...envOrigins]));
-
+// SIMPLE FULLY SAFE CORS
 app.use(
   cors({
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true); // Postman, curl, etc.
-      if (allowedOrigins.includes(origin)) return callback(null, true);
-      return callback(new Error(`CORS blocked: ${origin}`));
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
-// Preflight (Express 5 safe)
-app.options(/.*/, (req, res) => res.sendStatus(200));
-
-app.get('/', (req, res) => {
-  res.send('Password Reset API is running...');
+// ROUTES
+app.get("/", (req, res) => {
+  res.send("Password Reset API is running...");
 });
 
-app.use('/api/auth', authRoutes);
+app.use("/api/auth", authRoutes);
 
-const PORT = process.env.PORT || 5000;
-const mongoUri = process.env.MONGO_URI;
-
-if (!mongoUri) {
-  console.error('❌ ERROR: MONGO_URI missing in environment variables');
-  process.exit(1);
-}
-
+// MONGODB CONNECT
 mongoose
-  .connect(mongoUri)
+  .connect(process.env.MONGO_URI)
   .then(() => {
-    console.log('✅ MongoDB connected successfully');
-    app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+    console.log("MongoDB connected");
+    const PORT = process.env.PORT || 5000;
+    app.listen(PORT, () => console.log("Server running on port " + PORT));
   })
-  .catch(err => {
-    console.error('❌ MongoDB connection error:', err);
-    process.exit(1);
-  });
+  .catch((err) => console.error("Mongo Error:", err));

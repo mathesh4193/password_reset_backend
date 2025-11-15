@@ -1,4 +1,3 @@
-// models/User.js
 const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema(
@@ -8,11 +7,11 @@ const userSchema = new mongoose.Schema(
       required: true,
       unique: true,
       lowercase: true,
-      trim: true,
+      trim: true
     },
     password: { type: String, required: true },
     resetPasswordToken: { type: String, default: undefined },
-    resetPasswordExpires: { type: Date, default: undefined }, // not used now, but ready
+    resetPasswordExpires: { type: Date, default: undefined }
   },
   { timestamps: true }
 );
