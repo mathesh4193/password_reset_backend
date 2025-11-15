@@ -1,3 +1,4 @@
+// routes/auth.js
 require('dotenv').config();
 const express = require('express');
 const router = express.Router();
@@ -6,11 +7,11 @@ const crypto = require('crypto');
 const User = require('../models/User');
 const sendEmail = require('../utils/sendEmail');
 
-// Hash token
-const hashToken = (token) =>
+// helper: hash token
+const hashToken = token =>
   crypto.createHash('sha256').update(token).digest('hex');
 
-
+/* REGISTER */
 router.post('/register', async (req, res) => {
   try {
     const { email, password, confirmPassword } = req.body;
@@ -35,7 +36,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-
+/* LOGIN */
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -56,7 +57,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
-
+/* FORGOT PASSWORD (no expiry) */
 router.post('/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
@@ -66,23 +67,24 @@ router.post('/forgot-password', async (req, res) => {
 
     const user = await User.findOne({ email: email.toLowerCase() });
 
-    // Do not reveal whether user exists
-    if (!user)
-      return res.status(200).json({
+    // Always return same message for security
+    if (!user) {
+      return res.json({
         message: 'If that email exists, you will receive a reset link.',
       });
+    }
 
     const rawToken = crypto.randomBytes(32).toString('hex');
     user.resetPasswordToken = hashToken(rawToken);
-    user.resetPasswordExpires = undefined; // No expiry
+    user.resetPasswordExpires = undefined; // no expiry
     await user.save();
 
     const clientUrls = (process.env.CLIENT_URL || '')
       .split(',')
-      .map((u) => u.trim())
+      .map(u => u.trim())
       .filter(Boolean);
 
-    const base = clientUrls[0].replace(/\/$/, '');
+    const base = clientUrls[0]?.replace(/\/$/, '') || 'http://localhost:3001';
     const resetUrl = `${base}/reset-password?token=${rawToken}&email=${encodeURIComponent(
       user.email
     )}`;
@@ -91,7 +93,8 @@ router.post('/forgot-password', async (req, res) => {
       to: user.email,
       subject: 'Reset your password',
       text: resetUrl,
-      html: `<p>Click <a href="${resetUrl}">here</a> to reset password.</p>`,
+      html: `<p>You requested a password reset.</p>
+             <p>Click <a href="${resetUrl}">here</a> to reset your password.</p>`,
     });
 
     res.json({
@@ -103,6 +106,7 @@ router.post('/forgot-password', async (req, res) => {
   }
 });
 
+/* VALIDATE TOKEN */
 router.get('/validate-reset-token', async (req, res) => {
   try {
     const { token, email } = req.query;
@@ -126,7 +130,7 @@ router.get('/validate-reset-token', async (req, res) => {
   }
 });
 
-
+/* RESET PASSWORD */
 router.post('/reset-password', async (req, res) => {
   try {
     const { email, token, newPassword } = req.body;
@@ -135,6 +139,7 @@ router.post('/reset-password', async (req, res) => {
       return res.status(400).json({ message: 'Missing fields' });
 
     const hashedToken = hashToken(token);
+
     const user = await User.findOne({
       email: email.toLowerCase(),
       resetPasswordToken: hashedToken,

@@ -1,3 +1,4 @@
+// server.js
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -11,7 +12,7 @@ app.use(express.json());
 const defaultOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
-  'https://passwordresetg.netlify.app'
+  'https://passwordresetg.netlify.app',
 ];
 
 const envOrigins = (process.env.CLIENT_URL || '')
@@ -24,7 +25,7 @@ const allowedOrigins = Array.from(new Set([...defaultOrigins, ...envOrigins]));
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin) return callback(null, true); // Allow Postman, local testing
+      if (!origin) return callback(null, true); // Postman, curl, etc.
       if (allowedOrigins.includes(origin)) return callback(null, true);
       return callback(new Error(`CORS blocked: ${origin}`));
     },
@@ -34,7 +35,7 @@ app.use(
   })
 );
 
-// FIX: Express 5 wildcard error
+// Preflight (Express 5 safe)
 app.options(/.*/, (req, res) => res.sendStatus(200));
 
 app.get('/', (req, res) => {
@@ -43,25 +44,21 @@ app.get('/', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 
-// PORT
 const PORT = process.env.PORT || 5000;
-
-// MONGO CONNECTION
 const mongoUri = process.env.MONGO_URI;
+
 if (!mongoUri) {
-  console.error(' ERROR: MONGO_URI missing in environment variables');
+  console.error('❌ ERROR: MONGO_URI missing in environment variables');
   process.exit(1);
 }
 
 mongoose
   .connect(mongoUri)
   .then(() => {
-    console.log(' MongoDB connected successfully');
-    app.listen(PORT, () =>
-      console.log(` Server running on port ${PORT}`)
-    );
+    console.log('✅ MongoDB connected successfully');
+    app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
   })
-  .catch((err) => {
-    console.error(' MongoDB connection error:', err);
+  .catch(err => {
+    console.error('❌ MongoDB connection error:', err);
     process.exit(1);
   });
