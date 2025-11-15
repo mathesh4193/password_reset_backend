@@ -1,17 +1,33 @@
-// utils/sendEmail.js
-require('dotenv').config();
+require("dotenv").config();
+const nodemailer = require("nodemailer");
 
-/**
- * Mock email sender for hosted environments (no real SMTP).
- * Logs the reset link to console instead of sending email.
- */
 const sendEmail = async ({ to, subject, text, html }) => {
-  console.log("📧 [Mock Email] Sending to:", to);
-  console.log("Subject:", subject);
-  console.log("Text:", text);
-  console.log("HTML:", html);
-  console.log("✅ (No actual email sent — mock mode active)");
-  return Promise.resolve(); // Simulate async success
+  try {
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT),
+      secure: false,           // Gmail → port 587 → secure:false
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+      tls: { rejectUnauthorized: false }
+    });
+
+    const mailOptions = {
+      from: `${process.env.FROM_NAME} <${process.env.FROM_EMAIL}>`,
+      to,
+      subject,
+      text,
+      html,
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log("Email sent:", info.messageId);
+  } catch (error) {
+    console.error("Email error:", error);
+    throw error;
+  }
 };
 
 module.exports = sendEmail;

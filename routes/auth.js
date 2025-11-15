@@ -6,38 +6,40 @@ const crypto = require('crypto');
 const User = require('../models/User');
 const sendEmail = require('../utils/sendEmail');
 
-function hashToken(token) {
-  return crypto.createHash('sha256').update(token).digest('hex');
-}
+// Hash token
+const hashToken = (token) =>
+  crypto.createHash('sha256').update(token).digest('hex');
 
-/* REGISTER */
+
 router.post('/register', async (req, res) => {
   try {
     const { email, password, confirmPassword } = req.body;
+
     if (!email || !password || !confirmPassword)
       return res.status(400).json({ message: 'All fields required' });
 
     if (password !== confirmPassword)
       return res.status(400).json({ message: 'Passwords do not match' });
 
-    const existing = await User.findOne({ email: email.toLowerCase() });
-    if (existing) return res.status(400).json({ message: 'User already exists' });
+    const exists = await User.findOne({ email: email.toLowerCase() });
+    if (exists) return res.status(400).json({ message: 'User already exists' });
 
-    const salt = await bcrypt.genSalt(12);
-    const hashed = await bcrypt.hash(password, salt);
+    const hashed = await bcrypt.hash(password, 12);
 
     await User.create({ email: email.toLowerCase(), password: hashed });
-    res.status(201).json({ message: 'User registered successfully' });
+
+    res.json({ message: 'User registered successfully' });
   } catch (err) {
-    console.error(err);
+    console.error('REGISTER ERROR:', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
 
-/* LOGIN */
+
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+
     if (!email || !password)
       return res.status(400).json({ message: 'Email and password required' });
 
@@ -49,120 +51,112 @@ router.post('/login', async (req, res) => {
 
     res.json({ message: 'Login successful' });
   } catch (err) {
-    console.error(err);
+    console.error('LOGIN ERROR:', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
 
-/* FORGOT PASSWORD — NO EXPIRY */
+
 router.post('/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
-    if (!email) return res.status(400).json({ message: 'Email required' });
+
+    if (!email)
+      return res.status(400).json({ message: 'Email required' });
 
     const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) {
-      // Generic success message for privacy
-      return res.status(200).json({ message: 'If that email exists, you will receive a reset link.' });
-    }
 
-    // Generate token (no expiry)
+    // Do not reveal whether user exists
+    if (!user)
+      return res.status(200).json({
+        message: 'If that email exists, you will receive a reset link.',
+      });
+
     const rawToken = crypto.randomBytes(32).toString('hex');
-    const hashed = hashToken(rawToken);
-
-    user.resetPasswordToken = hashed;
-    user.resetPasswordExpires = undefined; // remove expiry entirely
+    user.resetPasswordToken = hashToken(rawToken);
+    user.resetPasswordExpires = undefined; // No expiry
     await user.save();
 
-    const clientUrls = (process.env.CLIENT_URL || 'http://localhost:3001')
+    const clientUrls = (process.env.CLIENT_URL || '')
       .split(',')
-      .map(s => s.trim())
+      .map((u) => u.trim())
       .filter(Boolean);
-    const clientBase = clientUrls[0].replace(/\/$/, '');
-    const resetUrl = `${clientBase}/reset-password?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
 
-    const subject = 'Reset your password';
-    const html = `
-      <p>You (or someone else) requested a password reset.</p>
-      <p>Click <a href="${resetUrl}">here</a> to reset your password.</p>
-      <p>This link has no expiry and can be used anytime.</p>
-    `;
+    const base = clientUrls[0].replace(/\/$/, '');
+    const resetUrl = `${base}/reset-password?token=${rawToken}&email=${encodeURIComponent(
+      user.email
+    )}`;
 
-    await sendEmail({ to: user.email, subject, text: resetUrl, html });
+    await sendEmail({
+      to: user.email,
+      subject: 'Reset your password',
+      text: resetUrl,
+      html: `<p>Click <a href="${resetUrl}">here</a> to reset password.</p>`,
+    });
 
-    res.status(200).json({ message: 'If that email exists, you will receive a reset link.' });
+    res.json({
+      message: 'If that email exists, you will receive a reset link.',
+    });
   } catch (err) {
-    console.error('Forgot Password Error:', err);
+    console.error('FORGOT PASSWORD ERROR:', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
 
-/* VALIDATE TOKEN (GET) — NO EXPIRY CHECK */
 router.get('/validate-reset-token', async (req, res) => {
   try {
     const { token, email } = req.query;
+
     if (!token || !email)
-      return res.status(400).json({ valid: false, message: 'Missing token or email.' });
+      return res.status(400).json({ valid: false });
 
     const hashed = hashToken(token);
+
     const user = await User.findOne({
       email: email.toLowerCase(),
-      resetPasswordToken: hashed
+      resetPasswordToken: hashed,
     });
 
-    if (!user)
-      return res.status(400).json({ valid: false, message: 'Invalid token.' });
+    if (!user) return res.status(400).json({ valid: false });
 
-    return res.json({ valid: true, message: 'Token valid' });
+    res.json({ valid: true });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ valid: false, message: 'Server error' });
+    console.error('VALIDATE TOKEN ERROR:', err);
+    res.status(500).json({ valid: false });
   }
 });
 
-/* RESET PASSWORD (POST) */
+
 router.post('/reset-password', async (req, res) => {
   try {
     const { email, token, newPassword } = req.body;
+
     if (!email || !token || !newPassword)
       return res.status(400).json({ message: 'Missing fields' });
 
     const hashedToken = hashToken(token);
     const user = await User.findOne({
       email: email.toLowerCase(),
-      resetPasswordToken: hashedToken
+      resetPasswordToken: hashedToken,
     });
 
     if (!user)
       return res.status(400).json({ message: 'Invalid token' });
 
-    const salt = await bcrypt.genSalt(12);
-    user.password = await bcrypt.hash(newPassword, salt);
-    user.resetPasswordToken = undefined; // remove token after use
+    user.password = await bcrypt.hash(newPassword, 12);
+    user.resetPasswordToken = undefined;
     await user.save();
 
-    // Notify user of password change
     await sendEmail({
       to: user.email,
       subject: 'Password Changed',
-      text: 'Your password has been updated successfully.',
-      html: '<p>Your password has been updated successfully.</p>'
+      text: 'Your password has been updated.',
+      html: '<p>Your password has been updated.</p>',
     });
 
     res.json({ message: 'Password reset successful.' });
   } catch (err) {
-    console.error('Reset Password Error:', err);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-/* GET ALL USERS (optional) */
-router.get('/register', async (req, res) => {
-  try {
-    const users = await User.find().select('-password -resetPasswordToken');
-    res.status(200).json(users);
-  } catch (err) {
-    console.error(err);
+    console.error('RESET PASSWORD ERROR:', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
