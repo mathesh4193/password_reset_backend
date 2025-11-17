@@ -5,16 +5,22 @@ const sendEmail = async ({ to, subject, text, html }) => {
   try {
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT), // 2525
-      secure: false,
+      port: Number(process.env.SMTP_PORT),
+      secure: Number(process.env.SMTP_PORT) === 465, // use secure for port 465
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       }
     });
 
+    // Verify connection configuration before attempting to send
+    await transporter.verify();
+
+    const fromName = process.env.FROM_NAME || "Password Reset";
+    const fromEmail = process.env.FROM_EMAIL || "no-reply@example.com";
+
     const info = await transporter.sendMail({
-      from: `${process.env.FROM_NAME} <${process.env.FROM_EMAIL}>`,
+      from: `${fromName} <${fromEmail}>`,
       to,
       subject,
       text,
