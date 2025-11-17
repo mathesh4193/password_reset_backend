@@ -28,6 +28,12 @@ const sendEmail = async ({ to, subject, text, html }) => {
     });
 
     console.log(" Email sent:", info.messageId);
+
+    // If using ethereal or mailtrap, nodemailer can provide a preview URL
+    const preview = nodemailer.getTestMessageUrl(info);
+    if (preview) {
+      console.log(" Preview URL:", preview);
+    }
   } catch (err) {
     console.error(" Email error:", err);
     throw err;
